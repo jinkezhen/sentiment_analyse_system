@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>分析结果</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { max-width: 800px; margin: 20px auto; padding: 20px; }
+        .result { font-size: 24px; color: #333; margin: 20px 0; }
+        .btn-return { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>情感分析结果</h1>
+    <div class="result" id="result">正在加载结果...</div>
+    <a href="/sentiment" class="btn btn-primary btn-return">返回输入</a>
+
+    <script>
+        // 从URL获取参数并显示
+        function showResult() {
+            const params = new URLSearchParams(window.location.search);
+            const sentiment = params.get('sentiment');
+            if(sentiment) {
+                const resultText = decodeURIComponent(sentiment);
+                document.getElementById('result').textContent = `情感倾向：${resultText}`;
+            } else {
+                document.getElementById('result').textContent = "未获取到分析结果";
+            }
+        }
+        
+        // 页面加载时立即执行
+        window.onload = showResult;
+    </script>
+</body>
+</html>

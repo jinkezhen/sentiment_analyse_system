@@ -1,0 +1,45 @@
+{
+    "listeners": [
+        {
+            "address": "0.0.0.0",
+            "port": 8081,
+            "https": false
+        }
+    ],
+    "static_files": {
+        "document_root": "/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/frontend",
+        "file_types": {
+            "html": "text/html",
+            "js": "application/javascript",
+            "css": "text/css",
+            "jpg": "image/jpeg",
+            "png": "image/png",
+            "gif": "image/gif"
+        },
+        "aliases": [
+            {
+                "uri": "/auth",
+                "path": "/auth",
+                "is_directory": true
+            }
+        ],
+        "enable_last_modified": true,
+        "enable_range": true
+    },
+    "thread_num": 4,
+    "db_clients": [
+        {
+            "name": "default",
+            "rdbms": "mysql",
+            "host": "127.0.0.1",
+            "port": 3306,
+            "dbname": "sentiment_analysis",
+            "user": "root",
+            "passwd": "123456",
+            "is_fast": false,
+            "number_of_connections": 1,
+            "timeout": -1.0,
+            "auto_batch": false
+        }
+    ]
+}
