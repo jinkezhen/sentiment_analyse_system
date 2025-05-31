@@ -3,7 +3,7 @@
 #include <algorithm>
 
 // 构造函数：加载模型
-TorchInfer::TorchInfer(const std::string& model_path) {
+TorchInfer::TorchInfer(const std::string& model_path, size_t num_threads) {
     load_vocab("/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/torch_infer/vocab.txt");
     try {
         // 加载TorchScript模型
@@ -12,6 +12,22 @@ TorchInfer::TorchInfer(const std::string& model_path) {
         model.eval();
     } catch (const c10::Error& e) {
         throw std::runtime_error("Failed to load model: " + std::string(e.what()));
+    }
+
+    // 初始化线程池
+    for(size_t i = 0; i < num_threads; ++i) {
+        workers.emplace_back([this] { worker_thread(); });
+    }
+}
+
+TorchInfer::~TorchInfer() {
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        stop = true;
+    }
+    condition.notify_all();
+    for(std::thread &worker: workers) {
+        worker.join();
     }
 }
 
@@ -36,31 +52,32 @@ std::tuple<torch::Tensor, torch::Tensor> TorchInfer::preprocess(const std::strin
         token_ids.push_back(get_token_id(token));
     }
     // 3. Padding/截断
-    if (token_ids.size() > pad_size_) {
-        token_ids.resize(pad_size_);
+    if (token_ids.size() > size_t(pad_size)) {
+        token_ids.resize(pad_size);
     } else {
-        token_ids.resize(pad_size_, 0);
+        token_ids.resize(pad_size, 0);
     }
     // 4. 创建attention mask
-    std::vector<int64_t> mask(pad_size_, 0);
-    int real_len = std::min(static_cast<int>(tokens.size()), pad_size_);
+    std::vector<int64_t> mask(pad_size, 0);
+    // int real_len = std::min(static_cast<int>(tokens.size()), pad_size);
+    size_t real_len = std::min(tokens.size(), static_cast<size_t>(pad_size));
     std::fill(mask.begin(), mask.begin() + real_len, 1);
     // 5. 转换为Tensor
     auto options = torch::TensorOptions().dtype(torch::kInt64);
     return {
-        torch::from_blob(token_ids.data(), {1, pad_size_}, options).clone(),
-        torch::from_blob(mask.data(), {1, pad_size_}, options).clone()
+        torch::from_blob(token_ids.data(), {1, pad_size}, options).clone(),
+        torch::from_blob(mask.data(), {1, pad_size}, options).clone()
     };
 }
 
 // 创建attention mask
 torch::Tensor TorchInfer::create_attention_mask(int seq_len) {
-    std::vector<int64_t> mask(pad_size_, 0);
-    int real_len = std::min(seq_len, pad_size_);
+    std::vector<int64_t> mask(pad_size, 0);
+    int real_len = std::min(seq_len, pad_size);
     std::fill(mask.begin(), mask.begin() + real_len, 1);
     
     auto options = torch::TensorOptions().dtype(torch::kInt64);
-    return torch::from_blob(mask.data(), {1, pad_size_}, options).clone();
+    return torch::from_blob(mask.data(), {1, pad_size}, options).clone();
 }
 
 std::vector<std::string> TorchInfer::tokenize(const std::string& text) {
@@ -109,4 +126,68 @@ int64_t TorchInfer::get_token_id(const std::string& token) {
         return unk_it->second;
     }
     return 0; // 若连 [UNK] 都找不到，返回 0 是兜底策略
+}
+
+void TorchInfer::worker_thread() {
+    while(true) {
+        std::function<void()> task;
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            condition.wait(lock, [this] { return stop || !tasks.empty(); });
+            if(stop && tasks.empty()) return;
+            task = std::move(tasks.front());
+            tasks.pop();
+        }
+        task();
+    }
+}
+
+std::future<double> TorchInfer::batch_predict(const std::vector<std::string>& texts) {
+    // 重置统计信息
+    total_processed = 0;
+    positive_count = 0;
+    current_batch_size = texts.size();
+    
+    // 创建新的promise
+    batch_promise = std::promise<double>();
+    
+    // 添加任务到队列
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        for(const auto& text : texts) {
+            tasks.emplace([this, text] { process_single_text(text); });
+        }
+    }
+    condition.notify_all();
+    
+    return batch_promise.get_future();
+}
+
+void TorchInfer::process_single_text(const std::string& text) {
+    bool is_positive = false;
+    
+    try {
+        std::string result = predict(text);
+        is_positive = (result == "积极");
+    } 
+    catch (...) {
+        // 预测失败，按非好评处理（但依然计入总数）
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(batch_mutex);
+        if (is_positive) {
+            positive_count++;
+        }
+        total_processed++;
+        if (total_processed == current_batch_size) {
+            bool result_set = false;
+            std::lock_guard<std::mutex> promise_lock(promise_mutex);
+            if (!result_set) {
+                double positive_ratio = static_cast<double>(positive_count) / total_processed;
+                batch_promise.set_value(positive_ratio);
+                result_set = true;
+            }
+        }
+    }
 }

@@ -28,14 +28,26 @@ link_directories(/usr/lib/x86_64-linux-gnu)
 find_package(Torch REQUIRED)
 find_package(Drogon CONFIG REQUIRED)
 
+add_compile_options(
+    -march=native
+    -mavx512f
+    -mavx512bw
+    -mavx512vl
+    -O3
+    -Wextra
+    -Wpedantic
+)
+
 # 声明 torch_infer 静态库或动态库
 add_library(torch_infer
     torch_infer/torch_infer.cc
 )
+
 target_include_directories(torch_infer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/torch_infer
     ${TORCH_INCLUDE_DIRS}            # 关键：加上torch头文件路径
 )
+
 target_link_libraries(torch_infer
     PRIVATE
     ${TORCH_LIBRARIES}
@@ -61,7 +73,6 @@ target_link_libraries(${PROJECT_NAME}
     mysqlclient
 )
 
-# 其余你的设置不变，比如：
 aux_source_directory(controllers CTL_SRC)
 aux_source_directory(filters FILTER_SRC)
 aux_source_directory(plugins PLUGIN_SRC)

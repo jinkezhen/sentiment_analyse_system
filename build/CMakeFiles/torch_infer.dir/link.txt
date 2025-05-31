@@ -1,2 +1,0 @@
-/usr/bin/ar qc libtorch_infer.a  CMakeFiles/torch_infer.dir/torch_infer/torch_infer.cc.o
-/usr/bin/ranlib libtorch_infer.a

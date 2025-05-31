@@ -1,7 +1,0 @@
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/CMakeFiles/rebuild_cache.dir
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/CMakeFiles/edit_cache.dir
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/CMakeFiles/new_project.dir
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/CMakeFiles/torch_infer.dir
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/test/CMakeFiles/rebuild_cache.dir
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/test/CMakeFiles/edit_cache.dir
-/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/build/test/CMakeFiles/new_project_test.dir

@@ -2,30 +2,62 @@
 <html>
 <head>
     <title>情感分析系统 - 输入</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap CSS，使用 jsDelivr 国内CDN -->
+    <link href="https://cdn.staticfile.org/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 防止 favicon 404 -->
+    <link rel="icon" href="data:," />
     <style>
-        body { max-width: 800px; margin: 20px auto; padding: 20px; }
+        body { padding: 20px; }
         textarea { width: 100%; height: 200px; margin: 10px 0; }
         .navbar { margin-bottom: 20px; }
+        .result-panel {
+            margin-top: 20px;
+            display: none;
+        }
+        .positive-result {
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .negative-result {
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#">Sentiment Analysis</a>
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard">返回功能界面</a>
             <div class="ml-auto">
-                <span id="usernameDisplay" class="navbar-text mr-3"></span>
-                <a href="/dashboard" class="btn btn-outline-light">返回功能界面</a>
+                <span id="usernameDisplay" class="navbar-text mr-3">Welcome, Loading...</span>
                 <a href="/logout" class="btn btn-outline-light">Logout</a>
             </div>
         </div>
     </nav>
 
-    <h1>请输入待分析的文本</h1>
-    <textarea id="inputText" class="form-control" placeholder="输入文本..."></textarea>
-    <button class="btn btn-primary" onclick="analyze()">开始分析</button>
+    <div class="container mt-4">
+        <h1>请输入待分析的文本</h1>
+        <textarea id="inputText" class="form-control" placeholder="输入文本..."></textarea>
+        <button class="btn btn-primary" id="analyzeBtn">开始分析</button>
+        
+        <!-- 结果展示区域 -->
+        <div class="result-panel mt-4" id="resultPanel">
+            <h2>分析结果</h2>
+            <div class="card">
+                <div class="card-body">
+                    <p id="sentimentResult">正在分析中...</p>
+                    <button class="btn btn-secondary" id="resetBtn">重新分析</button>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    <script src="/js/jquery.min.js"></script>
+    <!-- jQuery，使用国内 CDN -->
+    <script src="https://cdn.staticfile.org/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.staticfile.org/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+
     <script>
         // 显示用户名
         $(document).ready(function() {
@@ -38,32 +70,55 @@
                     }
                 }
             });
+            
+            // 分析按钮点击事件
+            $('#analyzeBtn').click(analyze);
+            
+            // 重新分析按钮点击事件
+            $('#resetBtn').click(function() {
+                $('#inputText').val('');
+                $('#resultPanel').hide();
+            });
         });
 
-        async function analyze() {
-            const text = document.getElementById('inputText').value;
-            if (!text.trim()) {
+        function analyze() {
+            const text = $('#inputText').val().trim();
+            if (!text) {
                 alert('请输入要分析的文本');
                 return;
             }
             
-            try {
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('分析失败');
+            // 显示加载状态
+            $('#resultPanel').show();
+            $('#sentimentResult').text('正在分析中...');
+            
+            $.ajax({
+                url: '/api/analyze',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ text: text }),
+                success: function(response) {
+                    if (response.sentiment) {
+                        // 根据结果设置样式
+                        if (response.sentiment === "积极") {
+                            $('#sentimentResult').html('情感倾向: <span class="positive-result">积极</span>');
+                        } else {
+                            $('#sentimentResult').html('情感倾向: <span class="negative-result">消极</span>');
+                        }
+                    } else {
+                        $('#sentimentResult').text('分析失败：未获取到结果');
+                    }
+                },
+                error: function(xhr) {
+                    let errorMsg = '分析失败';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMsg += ': ' + xhr.responseJSON.error;
+                    } else {
+                        errorMsg += '，状态码: ' + xhr.status;
+                    }
+                    $('#sentimentResult').text(errorMsg);
                 }
-                
-                const result = await response.json();
-                window.location.href = `/result?sentiment=${encodeURIComponent(result.sentiment)}`;
-            } catch (error) {
-                console.error('Error:', error);
-                alert('分析过程中出现错误');
-            }
+            });
         }
     </script>
 </body>
