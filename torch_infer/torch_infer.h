@@ -14,7 +14,6 @@
 #include <atomic>
 #include <mutex>
 
-
 class TorchInfer {
 public:
     // 构造函数：加载模型
