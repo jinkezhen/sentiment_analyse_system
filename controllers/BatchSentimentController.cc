@@ -5,7 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <json/json.h>
-#include <algorithm> // for std::min
+#include <algorithm>
 
 using namespace drogon;
 

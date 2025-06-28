@@ -316,6 +316,149 @@
 
 
 
+# import argparse
+# from selenium import webdriver
+# from selenium.webdriver.common.by import By
+# from selenium.webdriver.chrome.options import Options
+# from bs4 import BeautifulSoup
+# import time
+# import pymysql
+# from datetime import datetime
+
+# def get_db_connection():
+#     try:
+#         connection = pymysql.connect(
+#             host='127.0.0.1',
+#             user='root',  
+#             password='123456',
+#             database='sentiment_analysis',
+#             charset='utf8mb4',
+#             cursorclass=pymysql.cursors.DictCursor
+#         )
+#         return connection
+#     except Exception as e:
+#         print(f"数据库连接失败: {e}")
+#         return None
+
+# def init_database():
+#     connection = get_db_connection()
+#     if connection is None:
+#         return False
+    
+#     try:
+#         with connection.cursor() as cursor:
+#             cursor.execute("""
+#                 CREATE TABLE IF NOT EXISTS movies (
+#                     movie_id VARCHAR(20) PRIMARY KEY,
+#                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#                     rating_ratio DECIMAL(5,2) DEFAULT 0.00
+#                 )
+#             """)
+            
+#             cursor.execute("""
+#                 CREATE TABLE IF NOT EXISTS comments (
+#                     id INT AUTO_INCREMENT PRIMARY KEY,
+#                     movie_id VARCHAR(20),
+#                     content TEXT,
+#                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#                     FOREIGN KEY (movie_id) REFERENCES movies(movie_id)
+#                 )
+#             """)
+        
+#         connection.commit()
+#         return True
+#     except Exception as e:
+#         print(f"数据库初始化失败: {e}")
+#         return False
+#     finally:
+#         connection.close()
+
+# def save_to_database(movie_id, comments):
+#     connection = get_db_connection()
+#     if connection is None:
+#         return False
+    
+#     try:
+#         with connection.cursor() as cursor:
+#             # 插入或更新电影记录
+#             cursor.execute("""
+#                 INSERT INTO movies (movie_id) 
+#                 VALUES (%s)
+#                 ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP
+#             """, (movie_id,))
+            
+#             # 批量插入评论数据
+#             cursor.executemany(
+#                 "INSERT INTO comments (movie_id, content) VALUES (%s, %s)",
+#                 [(movie_id, comment) for comment in comments]
+#             )
+        
+#         connection.commit()
+#         print(f"成功保存 {len(comments)} 条评论到数据库")
+#         return True
+#     except Exception as e:
+#         print(f"数据库保存失败: {e}")
+#         return False
+#     finally:
+#         connection.close()
+
+# def scrape_douban_comments(movie_id):
+#     # 无头浏览器配置
+#     chrome_options = Options()
+#     chrome_options.add_argument('--headless')
+#     chrome_options.add_argument('--disable-gpu')
+#     chrome_options.add_argument('--no-sandbox')
+#     chrome_options.add_argument('--window-size=1920,1080')
+#     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+
+#     driver = webdriver.Chrome(options=chrome_options)
+
+#     # 初始页面
+#     url = f"https://movie.douban.com/subject/{movie_id}/comments"
+#     driver.get(url)
+#     time.sleep(2)
+
+#     all_comments = []
+#     page_count = 1
+
+#     while True:
+#         print(f"正在爬取第 {page_count} 页...")
+
+#         soup = BeautifulSoup(driver.page_source, 'html.parser')
+#         comment_spans = soup.find_all('span', class_='short')
+#         for span in comment_spans:
+#             all_comments.append(span.get_text(strip=True))
+
+#         try:
+#             next_button = driver.find_element(By.CSS_SELECTOR, 'a.next')
+#             next_button.click()
+#             page_count += 1
+#             time.sleep(2)
+#         except Exception as e:
+#             print("已加载所有数据")
+#             break
+    
+#     driver.quit()
+
+#     if save_to_database(movie_id, all_comments):
+#         print(f"\n=== 共获取评论 {len(all_comments)} 条 ===\n")
+#         print(f"评论已保存到MySQL数据库")
+#     else:
+#         print("评论保存失败")
+
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description='豆瓣电影评论爬取工具')
+#     parser.add_argument('movie_id', help='豆瓣电影ID，如36478801')
+#     args = parser.parse_args()
+
+#     if not init_database():
+#         print("数据库初始化失败，请检查MySQL服务是否正常运行")
+#         exit(1)
+        
+#     scrape_douban_comments(args.movie_id)
+
+
+
 import argparse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -324,6 +467,8 @@ from bs4 import BeautifulSoup
 import time
 import pymysql
 from datetime import datetime
+import os
+import re
 
 def get_db_connection():
     try:
@@ -402,7 +547,27 @@ def save_to_database(movie_id, comments):
     finally:
         connection.close()
 
-def scrape_douban_comments(movie_id):
+def save_to_txt(movie_id, comments, output_dir):
+    """将评论保存到指定目录下的movie_id.txt文件中"""
+    # 确保输出目录存在
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # 构建文件路径
+    file_path = os.path.join(output_dir, f"{movie_id}.txt")
+    
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for comment in comments:
+                # 关键修改：移除所有换行符和回车符，确保每条评论独占一行
+                cleaned_comment = re.sub(r'[\r\n]+', ' ', comment).strip()
+                f.write(cleaned_comment + '\n')
+        print(f"成功保存 {len(comments)} 条评论到文件: {file_path}")
+        return True
+    except Exception as e:
+        print(f"保存到文件失败: {e}")
+        return False
+
+def scrape_douban_comments(movie_id, output_dir):
     # 无头浏览器配置
     chrome_options = Options()
     chrome_options.add_argument('--headless')
@@ -440,19 +605,34 @@ def scrape_douban_comments(movie_id):
     
     driver.quit()
 
-    if save_to_database(movie_id, all_comments):
-        print(f"\n=== 共获取评论 {len(all_comments)} 条 ===\n")
+    # 保存到数据库
+    db_success = save_to_database(movie_id, all_comments)
+    
+    # 保存到文本文件
+    file_success = save_to_txt(movie_id, all_comments, output_dir)
+    
+    print(f"\n=== 共获取评论 {len(all_comments)} 条 ===")
+    if db_success:
         print(f"评论已保存到MySQL数据库")
-    else:
+    if file_success:
+        print(f"评论已保存到文本文件: {os.path.join(output_dir, f'{movie_id}.txt')}")
+    if not db_success and not file_success:
         print("评论保存失败")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='豆瓣电影评论爬取工具')
     parser.add_argument('movie_id', help='豆瓣电影ID，如36478801')
+    parser.add_argument('output_dir', nargs='?', default='/home/jkz/project/new_sentiment_analyse_system/project_with_mysql/crawler_data', 
+                        help='输出目录，默认为 /home/jkz/project/new_sentiment_analyse_system/project_with_mysql/crawler_data')
+    
     args = parser.parse_args()
 
+    # 确保输出目录存在
+    os.makedirs(args.output_dir, exist_ok=True)
+    
     if not init_database():
         print("数据库初始化失败，请检查MySQL服务是否正常运行")
-        exit(1)
+        # 即使数据库失败也继续爬取，但只保存到文件
+        print("将继续爬取并保存到文本文件")
         
-    scrape_douban_comments(args.movie_id)
+    scrape_douban_comments(args.movie_id, args.output_dir)

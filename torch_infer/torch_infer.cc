@@ -143,6 +143,8 @@ void TorchInfer::worker_thread() {
 }
 
 std::future<double> TorchInfer::batch_predict(const std::vector<std::string>& texts) {
+    std::cout << texts[0] << std::endl;
+    std::cout << texts[1] << std::endl;
     // 重置统计信息
     total_processed = 0;
     positive_count = 0;

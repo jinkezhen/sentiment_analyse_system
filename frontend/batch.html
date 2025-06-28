@@ -23,30 +23,30 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="/dashboard">返回功能界面</a>
             <div class="ml-auto">
-                <span id="usernameDisplay" class="navbar-text mr-3">Welcome, Loading...</span>
-                <a href="/logout" class="btn btn-outline-light">Logout</a>
+                <span id="usernameDisplay" class="navbar-text mr-3">欢迎, Loading...</span>
+                <a href="/logout" class="btn btn-outline-light">退出</a>
             </div>
         </div>
     </nav>
 
     <div class="container mt-4">
-        <h2 class="mb-4">Batch Analysis</h2>
+        <h2 class="mb-4">批量情感分析</h2>
         
         <div class="mb-3">
-            <label for="textInput" class="form-label">Enter texts (one per line):</label>
+            <label for="textInput" class="form-label">请输入多条待分析的文本（一行一条数据）:</label>
             <textarea class="form-control" id="textInput" rows="5"></textarea>
         </div>
         
         <div class="mb-3">
-            <label for="fileInput" class="form-label">Or upload a file:</label>
+            <label for="fileInput" class="form-label">或者上传一个文件:</label>
             <input class="form-control" type="file" id="fileInput" accept=".txt">
-            <small class="text-muted">Only .txt files are supported currently.</small>
+            <small class="text-muted">目前只支持上传txt文件</small>
         </div>
         
-        <button class="btn btn-primary" id="analyseBtn">Start Batch Analysis</button>
+        <button class="btn btn-primary" id="analyseBtn">开始批量分析</button>
         
         <div class="result-panel mt-4" id="resultPanel">
-            <h3>Analysis Result</h3>
+            <h3>分析结果</h3>
             <div class="card">
                 <div class="card-body">
                     <p id="positiveRatio"></p>
@@ -66,7 +66,7 @@
             type: 'GET',
             success: function(response) {
                 if (response.username) {
-                    $('#usernameDisplay').text('Welcome, ' + response.username);
+                    $('#usernameDisplay').text('欢迎, ' + response.username);
                 } else if (response.error) {
                     $('#usernameDisplay').text('Welcome, Guest');
                     console.error(response.error);
@@ -110,9 +110,9 @@
                     }
                     
                     // 显示结果
-                    $('#positiveRatio').text('Positive Ratio: ' + (response.positive_ratio * 100).toFixed(2) + '%');
-                    $('#positiveCount').text('Positive Count: ' + response.positive_count);
-                    $('#totalCount').text('Total Count: ' + response.total);
+                    $('#totalCount').text('已分析文本的总数量: ' + response.total);
+                    $('#positiveCount').text('分析结果为积极/正向的文本数量: ' + response.positive_count);
+                    $('#positiveRatio').text('该批次分析内容的积极/正向文本占比: ' + (response.positive_ratio * 100).toFixed(2) + '%');
                     $('#resultPanel').show();
                 },
                 error: function(xhr) {
